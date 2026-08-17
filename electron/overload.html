@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; }
+      html, body { height: 100%; background: transparent; overflow: hidden;
+        font-family: -apple-system, system-ui, sans-serif; display: grid; place-items: center; }
+      #card {
+        width: 440px; max-width: 92vw;
+        background: rgba(18, 20, 25, 0.95);
+        border: 1px solid rgba(220, 154, 88, 0.3);
+        border-radius: 20px;
+        backdrop-filter: blur(30px) saturate(1.2);
+        -webkit-backdrop-filter: blur(30px) saturate(1.2);
+        box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.8);
+        padding: 28px;
+        color: #e7e3da;
+      }
+      .eyebrow { font-size: 10px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #dc9a58; }
+      #counts { font-size: 12.5px; color: #9a958c; margin-top: 14px; line-height: 1.7; }
+      #counts b { color: #c9c4ba; font-weight: 600; }
+      .one-label { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #6f6b63; margin-top: 22px; }
+      #one { font-size: 24px; font-weight: 600; line-height: 1.25; margin-top: 6px; color: #f0ece3; }
+      #kind { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+        color: #dc9a58; margin-top: 8px; }
+      #btns { display: flex; gap: 8px; margin-top: 24px; }
+      button { font-size: 13px; font-weight: 600; border-radius: 10px; padding: 10px 16px; cursor: pointer; border: 1px solid transparent; }
+      .primary { background: #dc9a58; color: #14161a; }
+      .ghost { background: transparent; border-color: rgba(255, 255, 255, 0.14); color: #c9c4ba; }
+      .ghost:hover { border-color: rgba(255, 255, 255, 0.3); }
+      #calm { font-size: 15px; color: #9a958c; margin-top: 6px; }
+    </style>
+  </head>
+  <body>
+    <div id="card">
+      <div class="eyebrow">Breathe. Here's the collapse.</div>
+      <div id="counts"></div>
+      <div id="body"></div>
+      <div id="btns"></div>
+    </div>
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const KIND = { FOCUS: "already in progress", COMMITMENT: "someone's relying on you", TODO: "your most pressing todo", NONE: "" };
+
+      function render(d) {
+        const c = d?.counts || { todos: 0, worries: 0, projects: 0, parked: 0, commitments: 0 };
+        $("counts").innerHTML =
+          `Set aside for now: <b>${c.todos}</b> todos · <b>${c.commitments}</b> commitments · <b>${c.worries}</b> worries · <b>${c.projects}</b> projects · <b>${c.parked}</b> parked`;
+        const one = d?.one || { kind: "NONE" };
+        if (one.kind === "NONE") {
+          $("body").innerHTML = `<div class="one-label">Right now</div><div id="calm">Nothing is actually on fire. Pick one small thing, or just rest.</div>`;
+          $("btns").innerHTML = `<button class="primary" onclick="window.ovl.open()">Open HQ</button><button class="ghost" onclick="window.ovl.close()">Close</button>`;
+        } else {
+          $("body").innerHTML =
+            `<div class="one-label">Right now — one thing</div><div id="one">${escape(one.label)}</div><div id="kind">${KIND[one.kind] || ""}</div>`;
+          $("btns").innerHTML =
+            `<button class="primary" onclick="window.ovl.start()">Start this</button><button class="ghost" onclick="window.ovl.open()">Open HQ</button><button class="ghost" onclick="window.ovl.close()">Close</button>`;
+        }
+      }
+      function escape(s) { const d = document.createElement("div"); d.textContent = s || ""; return d.innerHTML; }
+
+      if (window.ovl) window.ovl.onData(render);
+      document.addEventListener("keydown", (e) => e.key === "Escape" && window.ovl && window.ovl.close());
+      render(null);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Meal" ADD COLUMN "sodiumMg" INTEGER;
+ALTER TABLE "Meal" ADD COLUMN "sugarG" REAL;

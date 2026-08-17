@@ -30,12 +30,28 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
-
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/src/generated/prisma
+
+# local data — this is a personal single-user app, the db is not sample data
+/prisma/*.db
+/prisma/*.db-journal
+/uploads
+
+# secrets
+.env
+
+# electron desktop build output
+/dist-desktop
+/electron/assets/icon-1024.png
+/prisma/*.bak-*
+.env*
+
+# personal ops doc — contains secrets
+HOSTING.md

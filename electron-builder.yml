@@ -1,0 +1,19 @@
+# Two-package.json layout: the app source is electron/ (which has its own tiny
+# package.json with NO dependencies), so electron-builder never walks the root's
+# huge node_modules (@aws-sdk/@libsql/next/prisma…) — which was OOM-ing the build.
+# The shell just loads the PM2 server on :3411, so it needs none of those at runtime.
+appId: com.hq.desktop
+productName: HQ
+copyright: Pranshu Pandey
+
+asar: false # skip asar packing (it was OOM-ing); plain files run identically
+
+directories:
+  app: electron
+  output: dist-desktop
+
+mac:
+  category: public.app-category.productivity
+  target: dir # unpacked .app — no dmg needed for a local install
+  icon: assets/icon.icns # relative to the app dir (electron/)
+  identity: null # ad-hoc sign so it runs on Apple Silicon without a paid cert

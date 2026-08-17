@@ -1,0 +1,587 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Job Applications ----------
+
+enum ApplicationCategory {
+  DREAM
+  STRONG
+  BACKUP
+  IGNORE_IF_BETTER
+}
+
+enum ApplicationStatus {
+  PENDING // form started, parked half-done — not out the door yet
+  APPLIED
+  RESPONSE
+  INTERVIEWING
+  OFFER
+  REJECTED
+  WITHDRAWN
+}
+
+enum WorkMode {
+  REMOTE
+  ONSITE
+  HYBRID
+}
+
+model Application {
+  id          String              @id @default(cuid())
+  company     String
+  role        String
+  description String              @default("")
+  category    ApplicationCategory @default(BACKUP)
+  status      ApplicationStatus   @default(APPLIED)
+  workMode    WorkMode?
+  city        String?
+  link        String? // where to resume the form / the posting
+  // null while PENDING — stamped the moment it actually goes out, so a draft
+  // started last week still counts as "applied today" when you finally submit it
+  submittedAt DateTime?
+  // compensation — a range, because it usually is one. offerAmount is the low end
+  // (or the exact figure when offerMax is null). offerNote holds the fine print.
+  offerAmount Float?
+  offerMax    Float?
+  offerNote   String              @default("")
+  offerCurrency String?           @default("INR")
+  notes       String              @default("")
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  platforms   ApplicationPlatform[]
+  interviews  Interview[]
+}
+
+model ApplicationPlatform {
+  id            String      @id @default(cuid())
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  applicationId String
+  platform      String
+  appliedOn     DateTime    @default(now())
+  link          String?
+  responseReceived Boolean  @default(false)
+  responseSource   String?
+  responseNotes    String  @default("")
+  emails        EmailSent[]
+  createdAt     DateTime    @default(now())
+}
+
+model EmailSent {
+  id                     String               @id @default(cuid())
+  applicationPlatform    ApplicationPlatform  @relation(fields: [applicationPlatformId], references: [id], onDelete: Cascade)
+  applicationPlatformId  String
+  recipientName          String?
+  recipientEmail         String?
+  subject                String?
+  sentOn                 DateTime             @default(now())
+  gotReply               Boolean              @default(false)
+}
+
+model Interview {
+  id            String      @id @default(cuid())
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  applicationId String
+  round         Int         @default(1)
+  type          String      @default("")
+  scheduledOn   DateTime?
+  outcome       String      @default("")
+  notes         String      @default("")
+  createdAt     DateTime    @default(now())
+}
+
+// ---------- Side Projects / Product Ideas ----------
+
+enum ProjectStatus {
+  IDEA
+  PLANNING
+  BUILDING
+  SHIPPED
+  ABANDONED
+}
+
+enum ProjectPriority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+model Project {
+  id          String          @id @default(cuid())
+  title       String
+  description String          @default("")
+  status      ProjectStatus   @default(IDEA)
+  priority    ProjectPriority @default(MEDIUM)
+  notes       String          @default("")
+  link        String?
+  targetDate  DateTime?
+  // "resume" context — a 30-second reconstruction of where you left off
+  goal        String          @default("")
+  state       String          @default("") // current state
+  blocker     String          @default("") // what's stuck right now
+  nextAction  String          @default("") // the immediate next physical action
+  tasks       ProjectTask[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model ProjectTask {
+  id        String   @id @default(cuid())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  title     String
+  done      Boolean  @default(false)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+// ---------- Web push ----------
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+}
+
+// ---------- Cross-section tagging ----------
+// polymorphic link: any item in any section can reference any other item.
+// both the attach-picker and (later) inline @-mentions write rows here, so the
+// backlink graph is unified. type is one of the EntityType strings in lib/entities.
+model Mention {
+  id         String   @id @default(cuid())
+  sourceType String
+  sourceId   String
+  targetType String
+  targetId   String
+  via        String   @default("manual") // "manual" = tag picker · "inline" = @-mention in prose
+  createdAt  DateTime @default(now())
+
+  @@unique([sourceType, sourceId, targetType, targetId])
+  @@index([targetType, targetId])
+  @@index([sourceType, sourceId])
+}
+
+// ---------- Reflections / dialectics ----------
+
+enum ReflectionSide {
+  THESIS
+  ANTITHESIS
+}
+
+model Reflection {
+  id              String   @id @default(cuid())
+  title           String
+  thesisLabel     String   @default("Thesis")
+  antithesisLabel String   @default("Antithesis")
+  thesisBody      String   @default("")
+  antithesisBody  String   @default("")
+  synthesis       String   @default("")
+  lean            Int      @default(50) // 0 = fully antithesis · 100 = fully thesis
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  thoughts ReflectionThought[]
+}
+
+model ReflectionThought {
+  id           String         @id @default(cuid())
+  reflection   Reflection     @relation(fields: [reflectionId], references: [id], onDelete: Cascade)
+  reflectionId String
+  side         ReflectionSide
+  body         String
+  // an incident can be a free thought, or a real note dropped in (link + snapshot)
+  note         Note?          @relation(fields: [noteId], references: [id], onDelete: SetNull)
+  noteId       String?
+  order        Int            @default(0)
+  createdAt    DateTime       @default(now())
+}
+
+// ---------- Social presence ----------
+
+enum SocialPlatform {
+  X
+  LINKEDIN
+  INSTAGRAM
+}
+
+enum SocialAction {
+  POST
+  COMMENT
+  DM
+  STORY
+  CONNECT
+}
+
+model SocialLog {
+  id        String         @id @default(cuid())
+  platform  SocialPlatform
+  action    SocialAction   @default(POST)
+  note      String         @default("")
+  link      String?
+  createdAt DateTime       @default(now())
+}
+
+// ---------- Notes ----------
+
+model Note {
+  id        String   @id @default(cuid())
+  title     String
+  content   String   @default("")
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  incidents ReflectionThought[]
+}
+
+// ---------- Quotes & Poetry ----------
+
+enum QuoteKind {
+  QUOTE
+  POEM
+  PROVERB
+  LYRIC
+}
+
+model Quote {
+  id        String    @id @default(cuid())
+  text      String
+  author    String    @default("")
+  source    String    @default("")
+  kind      QuoteKind @default(QUOTE)
+  labels    String    @default("") // comma-separated
+  favorite  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+// ---------- People / relationships ----------
+
+model Person {
+  id           String   @id @default(cuid())
+  name         String
+  relation     String   @default("") // friend, family, mentor, colleague…
+  handle       String   @default("") // optional contact/@
+  notes        String   @default("")
+  reminderDays Int? // keep-in-touch cadence; null = not tracked
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  interactions Interaction[]
+}
+
+model Interaction {
+  id        String   @id @default(cuid())
+  person    Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  personId  String
+  kind      String   @default("") // met, call, text, dm, hangout…
+  note      String   @default("")
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+}
+
+// ---------- Work / companies ----------
+
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  role      String   @default("") // my role there
+  kind      String   @default("") // internship, freelance, full-time
+  active    Boolean  @default(true)
+  notes     String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items WorkItem[]
+}
+
+enum WorkBucket {
+  DOING
+  BUG
+  PARKED
+  DONE
+}
+
+model WorkItem {
+  id        String     @id @default(cuid())
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+  title     String
+  bucket    WorkBucket @default(DOING)
+  scope     String     @default("") // discipline/area — FE, BE, Design, or custom
+  order     Int        @default(0)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+// ---------- Gym / training ----------
+
+model Workout {
+  id          String   @id @default(cuid())
+  date        DateTime @default(now())
+  groups      String   @default("") // comma-separated muscle groups
+  notes       String   @default("")
+  durationMin Int?
+  createdAt   DateTime @default(now())
+}
+
+// ---------- Wellbeing / hygiene ----------
+// one row per calendar day (date is midnight-local, hence @unique — the day IS the key)
+
+model HealthDay {
+  id         String   @id @default(cuid())
+  date       DateTime @unique
+  brushed    Int      @default(0) // times brushed — 0, 1 or 2
+  bathed     Boolean  @default(false)
+  // upkeep — not daily chores, they run on a 3–4 day cadence
+  roomCleaned  Boolean @default(false)
+  beardTrimmed Boolean @default(false)
+  smokes     Int      @default(0)
+  waterMl    Int      @default(0)
+  sleepHours Float? // manual fallback total when no timed segments are logged
+  posture    Int? // 1 slouched → 5 upright
+  mood       Int? // 1–100
+  nutrients  String   @default("") // comma-separated nutrient keys
+  notes      String   @default("") // rich HTML
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  meals  Meal[]
+  sleeps SleepSegment[]
+}
+
+// one stretch of sleep. multiple NIGHT segments capture waking up mid-night;
+// NAP segments capture daytime sleep. times are minutes-from-local-midnight,
+// so a night that crosses midnight (23:10 → 07:00) is start=1390, end=420.
+model SleepSegment {
+  id        String    @id @default(cuid())
+  day       HealthDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  dayId     String
+  kind      String    @default("NIGHT") // NIGHT | NAP
+  startMin  Int
+  endMin    Int
+  createdAt DateTime  @default(now())
+}
+
+model Meal {
+  id        String    @id @default(cuid())
+  day       HealthDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  dayId     String
+  label     String    @default("") // what you ate
+  junkLevel Int       @default(0) // 0 = clean · 1–5 how junk it was
+  calories  Int? // optional — only tracked when you bother
+  proteinG  Float?
+  sodiumMg  Int?
+  sugarG    Float?
+  timeMin   Int? // when you ate it — minutes from midnight (null = untimed)
+  createdAt DateTime  @default(now())
+}
+
+// singleton — the biometrics every target on the wellbeing page is derived from
+model Profile {
+  id            String   @id @default("me")
+  sex           String   @default("MALE")
+  birthYear     Int      @default(2004)
+  heightCm      Float    @default(177.8) // 5'10"
+  activity      String   @default("LIGHT") // SEDENTARY · LIGHT · MODERATE · ACTIVE · ATHLETE
+  goal          String   @default("MAINTAIN") // CUT · MAINTAIN · BULK
+  startWeightKg Float    @default(64) // fallback until the first weigh-in
+  // your usual rhythm — minutes from midnight — the circadian comparison judges against these
+  sleepTargetMin Int     @default(1380) // 23:00
+  wakeTargetMin  Int     @default(420) // 07:00
+  updatedAt     DateTime @updatedAt
+}
+
+// body weight over time — one weigh-in per day (the scale, not the barbell)
+model BodyWeight {
+  id        String   @id @default(cuid())
+  date      DateTime @unique
+  kg        Float
+  note      String   @default("")
+  createdAt DateTime @default(now())
+}
+
+// ---------- Todos ----------
+
+enum TodoPriority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum TodoKind {
+  QUICK
+  ONGOING
+}
+
+model Todo {
+  id        String       @id @default(cuid())
+  title     String
+  done      Boolean      @default(false)
+  priority  TodoPriority @default(MEDIUM)
+  kind      TodoKind     @default(QUICK)
+  status    String       @default("") // running status for ongoing todos
+  dueDate   DateTime?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+// ---------- Focus (the NOW engine) ----------
+// One authoritative answer to "what am I doing right now". At most one row is
+// ACTIVE at a time. Soft-linked to a Todo/Project by id (no relation) so this
+// stays additive and can't affect those tables. Shared by the web app, the
+// menu-bar readout, and the floating desktop beacon.
+
+enum FocusStatus {
+  ACTIVE
+  DONE
+  ABANDONED
+}
+
+model FocusSession {
+  id          String      @id @default(cuid())
+  label       String
+  kind        String      @default("FOCUS") // FOCUS | CULTURE (leisure, no guilt)
+  goal        String      @default("")
+  nextAction  String      @default("")
+  todoId      String? // soft link — the todo this session is chipping at
+  projectId   String? // soft link — the project this belongs to
+  plannedMin  Int         @default(25)
+  startedAt   DateTime    @default(now())
+  endsAt      DateTime // absolute time the timer runs out (shifts on pause/resume)
+  paused      Boolean     @default(false)
+  remainingMs Int         @default(0) // remaining, authoritative while paused
+  status      FocusStatus @default(ACTIVE)
+  endedAt     DateTime?
+  createdAt   DateTime    @default(now())
+
+  @@index([status])
+}
+
+// ---------- Capture (the open-loop inbox) ----------
+// One place to dump anything from anywhere so your head doesn't have to hold it.
+// Auto-sorted into a kind; tasks can be promoted to a real Todo. Serves capture,
+// the worry parking lot, rabbit-hole containment, and commitments in one store.
+
+enum CaptureKind {
+  TASK
+  IDEA
+  WORRY
+  RABBIT_HOLE
+  COMMITMENT
+}
+
+enum CaptureStatus {
+  OPEN // fresh, unprocessed
+  PARKED // deliberately not now
+  ACTIONED // turned into a todo / dealt with
+  DROPPED // let go
+}
+
+model Capture {
+  id        String        @id @default(cuid())
+  text      String
+  kind      CaptureKind   @default(IDEA)
+  status    CaptureStatus @default(OPEN)
+  who       String        @default("") // for commitments — who's relying on you
+  todoId    String? // set when promoted to a Todo
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([status])
+  @@index([kind])
+}
+
+// ---------- Day plan (modes + shutdown) ----------
+// One row per day. Holds the day's operating mode (energy / maintenance) and the
+// end-of-day shutdown so tomorrow-morning-you inherits context instead of
+// reconstructing it. Separate from HealthDay so wellbeing stays untouched.
+
+model DayPlan {
+  id          String   @id @default(cuid())
+  date        DateTime @unique
+  energy      String   @default("") // LOW | NORMAL | HIGH
+  maintenance Boolean  @default(false) // minimum-viable-day mode
+  finished    String   @default("") // shutdown: what you finished
+  remaining   String   @default("") // shutdown: what's left
+  firstAction String   @default("") // tomorrow's first action
+  shutAt      DateTime? // when the shutdown was recorded
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ---------- Scheduled transitions (behavioral alarms) ----------
+// Not just "7pm — DSA". The desktop fires a lead nudge, a start nudge, and a
+// "you haven't started" nudge — because the hard part is the transition, not
+// remembering the appointment.
+
+model Reminder {
+  id         String   @id @default(cuid())
+  label      String
+  at         DateTime // when it should start
+  leadMin    Int      @default(5) // warn this many minutes before
+  todoId     String? // optional — start a focus session on this todo
+  status     String   @default("PENDING") // PENDING | STARTED | DONE | SKIPPED
+  firedLead  Boolean  @default(false) // desktop nudge bookkeeping
+  firedStart Boolean  @default(false)
+  firedLate  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([status])
+  @@index([at])
+}
+
+// ---------- Decision memory (anti-rumination) ----------
+// Record what you decided and WHY, so you stop re-litigating solved questions.
+
+model Decision {
+  id         String    @id @default(cuid())
+  title      String // the question you settled
+  choice     String // what you chose
+  reason     String    @default("")
+  createdAt  DateTime  @default(now())
+  reopenedAt DateTime?
+}
+
+// ---------- Personal operating manual ----------
+// "How I work best" — observations you choose to keep. Not diagnoses.
+
+model Observation {
+  id        String   @id @default(cuid())
+  text      String
+  createdAt DateTime @default(now())
+}
+
+// ---------- Uploaded images (stored in the DB, not on disk) ----------
+// Keeps images in Turso so they survive on serverless and need no object store /
+// credit card. Fine for a personal app's occasional pasted images.
+
+model Blob {
+  name        String   @id
+  contentType String
+  data        Bytes
+  createdAt   DateTime @default(now())
+}
+
+// ---------- Social reality-check ----------
+// After a socially confusing moment: separate what happened from what you read
+// into it, weigh the evidence, decide if anything actually needs doing. Trains
+// the brain away from ambiguity → catastrophic interpretation.
+
+model SocialCheck {
+  id              String   @id @default(cuid())
+  event           String // what happened, objectively
+  interpretation  String   @default("") // what you thought it meant
+  evidenceFor     String   @default("")
+  evidenceAgainst String   @default("")
+  verdict         String   @default("") // PARK | ACT | LETGO
+  createdAt       DateTime @default(now())
+}

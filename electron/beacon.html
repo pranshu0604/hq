@@ -1,0 +1,121 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      :root {
+        --bg: rgba(15, 17, 21, 0.82);
+        --border: rgba(220, 154, 88, 0.28);
+        --ink: #e7e3da;
+        --dim: #9a958c;
+        --accent: #dc9a58;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; cursor: default; }
+      html, body { height: 100%; background: transparent; overflow: hidden;
+        font-family: -apple-system, system-ui, sans-serif; }
+      #pill {
+        height: 100%; width: 100%;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        backdrop-filter: blur(18px) saturate(1.2);
+        -webkit-backdrop-filter: blur(18px) saturate(1.2);
+        box-shadow: 0 8px 30px -8px rgba(0, 0, 0, 0.6);
+        display: flex; flex-direction: column; justify-content: center;
+        padding: 8px 14px;
+        transition: opacity 0.25s ease;
+      }
+      /* fade a touch while it's dodging, so motion reads as "getting out of the way" */
+      body.dodging #pill { opacity: 0.55; }
+
+      /* idle: just the time */
+      #idle { display: flex; align-items: baseline; gap: 8px; }
+      #clock { font-family: "IBM Plex Mono", ui-monospace, monospace;
+        font-size: 26px; font-weight: 500; letter-spacing: 0.5px; color: var(--ink); line-height: 1; }
+      #ampm { font-size: 11px; color: var(--dim); letter-spacing: 1px; }
+      #idle .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--dim);
+        opacity: 0.5; margin-left: auto; }
+
+      /* active: focus label + countdown */
+      #active { display: none; }
+      body.active #idle { display: none; }
+      body.active #active { display: block; }
+      #label { font-size: 10px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+        color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #count { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 27px; font-weight: 600;
+        color: var(--ink); line-height: 1.05; letter-spacing: 1px; }
+      body.paused #count { color: var(--dim); }
+      body.done #count { color: var(--accent); }
+      #next { font-size: 10.5px; color: var(--dim); white-space: nowrap; overflow: hidden;
+        text-overflow: ellipsis; margin-top: 1px; }
+      #next:empty { display: none; }
+      #tiny-clock { position: absolute; top: 6px; right: 12px; font-size: 9.5px; color: var(--dim);
+        font-family: "IBM Plex Mono", ui-monospace, monospace; opacity: 0.7; }
+      body:not(.active) #tiny-clock { display: none; }
+    </style>
+  </head>
+  <body>
+    <div id="pill">
+      <div id="tiny-clock"></div>
+      <div id="idle">
+        <span id="clock">--:--</span>
+        <span id="ampm"></span>
+        <span class="dot"></span>
+      </div>
+      <div id="active">
+        <div id="label">Focus</div>
+        <div id="count">00:00</div>
+        <div id="next"></div>
+      </div>
+    </div>
+    <script>
+      const $ = (id) => document.getElementById(id);
+      let state = { active: false };
+
+      function wallClock() {
+        const d = new Date();
+        let h = d.getHours();
+        const m = String(d.getMinutes()).padStart(2, "0");
+        const ampm = h >= 12 ? "PM" : "AM";
+        h = h % 12 || 12;
+        return { hm: `${h}:${m}`, ampm };
+      }
+
+      function fmt(ms) {
+        const s = Math.max(0, Math.round(ms / 1000));
+        const h = Math.floor(s / 3600);
+        const mm = Math.floor((s % 3600) / 60);
+        const ss = s % 60;
+        return h > 0
+          ? `${h}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`
+          : `${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+      }
+
+      function render() {
+        const c = wallClock();
+        $("clock").textContent = c.hm;
+        $("ampm").textContent = c.ampm;
+        $("tiny-clock").textContent = `${c.hm} ${c.ampm}`;
+
+        document.body.classList.toggle("active", !!state.active);
+        document.body.classList.toggle("paused", !!state.paused);
+        document.body.classList.toggle("done", !!state.done);
+        if (state.active) {
+          $("label").textContent = state.label || "Focus";
+          $("count").textContent = state.done ? "done" : fmt(state.remainingMs || 0);
+          $("next").textContent = state.nextAction || "";
+        }
+      }
+
+      if (window.beacon) {
+        window.beacon.onUpdate((data) => {
+          state = data || { active: false };
+          render();
+        });
+        window.beacon.onDodge((on) => document.body.classList.toggle("dodging", !!on));
+      }
+      setInterval(render, 1000);
+      render();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,13 @@
+-- AlterTable
+ALTER TABLE "Meal" ADD COLUMN "timeMin" INTEGER;
+
+-- CreateTable
+CREATE TABLE "SleepSegment" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "dayId" TEXT NOT NULL,
+    "kind" TEXT NOT NULL DEFAULT 'NIGHT',
+    "startMin" INTEGER NOT NULL,
+    "endMin" INTEGER NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "SleepSegment_dayId_fkey" FOREIGN KEY ("dayId") REFERENCES "HealthDay" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);

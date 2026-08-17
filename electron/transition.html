@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; }
+      html, body { height: 100%; background: transparent; overflow: hidden;
+        font-family: -apple-system, system-ui, sans-serif; display: grid; place-items: center; }
+      #card {
+        width: 420px; max-width: 92vw;
+        background: rgba(18, 20, 25, 0.96);
+        border: 1px solid rgba(220, 154, 88, 0.35);
+        border-radius: 20px;
+        backdrop-filter: blur(30px) saturate(1.2);
+        -webkit-backdrop-filter: blur(30px) saturate(1.2);
+        box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.8);
+        padding: 26px;
+        color: #e7e3da;
+      }
+      #head { font-size: 10px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #dc9a58; }
+      #label { font-size: 26px; font-weight: 700; line-height: 1.2; margin-top: 10px; color: #f0ece3; }
+      #sub { font-size: 13px; color: #9a958c; margin-top: 6px; }
+      #btns { display: flex; gap: 8px; margin-top: 22px; }
+      button { font-size: 13px; font-weight: 600; border-radius: 10px; padding: 10px 16px; cursor: pointer; border: 1px solid transparent; }
+      .primary { background: #dc9a58; color: #14161a; }
+      .ghost { background: transparent; border-color: rgba(255,255,255,0.14); color: #c9c4ba; }
+      .ghost:hover { border-color: rgba(255,255,255,0.3); }
+    </style>
+  </head>
+  <body>
+    <div id="card">
+      <div id="head">Transition</div>
+      <div id="label">—</div>
+      <div id="sub"></div>
+      <div id="btns">
+        <button class="primary" onclick="window.tr.start()">Start now</button>
+        <button class="ghost" onclick="window.tr.snooze()">Snooze 10m</button>
+        <button class="ghost" onclick="window.tr.skip()">Skip</button>
+      </div>
+    </div>
+    <script>
+      const $ = (id) => document.getElementById(id);
+      function esc(s){ const d=document.createElement("div"); d.textContent=s||""; return d.innerHTML; }
+      if (window.tr) window.tr.onData((d) => {
+        $("head").textContent = d.type === "late" ? "You haven't started" : "It's time";
+        $("label").textContent = esc(d.label);
+        $("sub").textContent = d.type === "late" ? "planned a little while ago — start, or let it go?" : "you planned this for now";
+      });
+      document.addEventListener("keydown", (e) => e.key === "Escape" && window.tr && window.tr.close());
+    </script>
+  </body>
+</html>

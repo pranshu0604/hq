@@ -1,0 +1,70 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { height: 100%; background: transparent; overflow: hidden;
+        font-family: -apple-system, system-ui, sans-serif; }
+      #box {
+        height: 100%; margin: 0 auto; max-width: 560px;
+        background: rgba(20, 22, 27, 0.92);
+        border: 1px solid rgba(220, 154, 88, 0.35);
+        border-radius: 16px;
+        backdrop-filter: blur(24px) saturate(1.2);
+        -webkit-backdrop-filter: blur(24px) saturate(1.2);
+        box-shadow: 0 20px 60px -15px rgba(0, 0, 0, 0.7);
+        display: flex; align-items: center; gap: 12px; padding: 0 18px;
+      }
+      #tag { font-size: 10px; font-weight: 800; letter-spacing: 1.6px; text-transform: uppercase;
+        color: #dc9a58; white-space: nowrap; }
+      #in { flex: 1; background: transparent; border: 0; outline: 0; color: #e7e3da;
+        font-size: 18px; font-weight: 500; caret-color: #dc9a58; }
+      #in::placeholder { color: #6f6b63; font-weight: 400; }
+      #hint { font-size: 11px; color: #6f6b63; white-space: nowrap; font-family: ui-monospace, monospace; }
+    </style>
+  </head>
+  <body>
+    <div id="box">
+      <span id="tag">Start</span>
+      <input id="in" autofocus autocomplete="off" spellcheck="false" />
+      <span id="hint">↵ · esc</span>
+    </div>
+    <script>
+      const MODES = {
+        start: { tag: "Start", ph: "what are you doing?  e.g.  DSA — binary trees 30", hint: "↵ start · esc" },
+        capture: { tag: "Capture", ph: "dump a task, worry, idea, rabbit hole…", hint: "↵ save · esc" },
+        rabbit: { tag: "Rabbit hole", ph: "what caught your eye? saved for later, keep working", hint: "↵ save · esc" },
+        culture: { tag: "Culture", ph: "what are you enjoying? memes, a show, music — no guilt", hint: "↵ go · esc" },
+      };
+      const input = document.getElementById("in");
+      let mode = "start";
+
+      function apply(m) {
+        mode = MODES[m] ? m : "start";
+        const cfg = MODES[mode];
+        document.getElementById("tag").textContent = cfg.tag;
+        input.placeholder = cfg.ph;
+        document.getElementById("hint").textContent = cfg.hint;
+        input.value = "";
+        input.focus();
+        input.select();
+      }
+
+      // the main process pushes the mode every time the prompt is summoned
+      if (window.hqPrompt && window.hqPrompt.onMode) window.hqPrompt.onMode(apply);
+      window.addEventListener("focus", () => input.focus());
+
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && input.value.trim()) {
+          window.hqPrompt.submit(mode, input.value);
+          input.value = "";
+        } else if (e.key === "Escape") {
+          input.value = "";
+          window.hqPrompt.cancel();
+        }
+      });
+      apply("start");
+    </script>
+  </body>
+</html>

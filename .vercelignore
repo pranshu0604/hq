@@ -1,0 +1,11 @@
+# Defense-in-depth: never upload secrets, personal data, or the desktop build.
+# (Vercel already respects .gitignore; this is an explicit second guard.)
+.env
+.env.*
+uploads/
+prisma/dev.db
+prisma/dev.db-journal
+prisma/*.bak-*
+dist-desktop/
+*.log
+.DS_Store

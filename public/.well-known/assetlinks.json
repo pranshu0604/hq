@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.hq.widget",
+      "sha256_cert_fingerprints": [
+        "A5:8A:A5:16:F8:38:80:52:6A:3A:89:55:47:50:E8:B5:7F:FF:87:6C:99:B2:F8:1A:96:4E:8F:07:D9:39:D0:28"
+      ]
+    }
+  }
+]
