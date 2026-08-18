@@ -206,15 +206,15 @@ export default function CommandList({ initial }: { initial: UnifiedList }) {
       {/* add a task directly (with an optional repeat interval) — Committed tab */}
       {tab === "committed" && (
         <div className="card p-4 sm:p-5">
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex flex-col gap-2 sm:grid sm:grid-cols-[1fr_12rem_auto] sm:items-center">
             <input
               value={taskText}
               onChange={(e) => setTaskText(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addTask()}
               placeholder="Add a task…"
-              className="field-input flex-1"
+              className="field-input"
             />
-            <select value={taskRecur} onChange={(e) => setTaskRecur(e.target.value)} className="field-input sm:w-48" title="repeat interval">
+            <select value={taskRecur} onChange={(e) => setTaskRecur(e.target.value)} className="field-input" title="repeat interval">
               {RECUR_OPTS.map((o) => (
                 <option key={o.v} value={o.v}>
                   {o.v === 0 ? "One-off" : `Repeat: ${o.label.toLowerCase()}`}
