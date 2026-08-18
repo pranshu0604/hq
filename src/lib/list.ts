@@ -18,6 +18,7 @@ export type ListItem = {
   when?: string | null; // ISO — reminder time or todo due date
   parked?: boolean;
   done?: boolean;
+  recurEveryDays?: number | null; // todos: repeats every N days
   todoId?: string | null;
   createdAt: string;
 };
@@ -57,6 +58,7 @@ export async function getUnifiedList(nowMs = Date.now()): Promise<UnifiedList> {
       tag: t.priority,
       when: t.dueDate ? t.dueDate.toISOString() : null,
       done: false,
+      recurEveryDays: t.recurEveryDays,
       createdAt: t.createdAt.toISOString(),
     }));
 

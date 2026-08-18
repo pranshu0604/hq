@@ -21,6 +21,20 @@ export const dynamic = "force-dynamic";
 
 const KINDS = ["TASK", "IDEA", "WORRY", "RABBIT_HOLE", "COMMITMENT"];
 
+// midnight, n days from today — the next occurrence anchor for recurring todos
+function startOfDayPlus(n: number): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + n);
+  return d;
+}
+// parse a repeat interval: null/none clears it; otherwise 1..365 days
+function parseRecur(v: unknown): number | null {
+  if (v == null || v === "" || v === "none") return null;
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) && n >= 1 && n <= 365 ? n : null;
+}
+
 function refresh() {
   revalidatePath("/inbox");
   revalidatePath("/todos");
@@ -61,9 +75,32 @@ export async function POST(req: Request) {
       if (action === "add") {
         const title = String(b.text ?? "").trim();
         if (!title) return NextResponse.json({ error: "empty" }, { status: 400 });
-        await prisma.todo.create({ data: { title: title.slice(0, 200) } });
-      } else if (action === "toggle") await prisma.todo.update({ where: { id }, data: { done: !!b.done } }).catch(() => null);
-      else if (action === "edit") {
+        const recur = parseRecur(b.recurEveryDays);
+        await prisma.todo.create({
+          data: {
+            title: title.slice(0, 200),
+            recurEveryDays: recur,
+            // a recurring task starts due today; a one-off takes an optional due date
+            dueDate: recur ? startOfDayPlus(0) : b.at ? new Date(String(b.at)) : null,
+          },
+        });
+      } else if (action === "toggle") {
+        const t = await prisma.todo.findUnique({ where: { id } });
+        if (t?.recurEveryDays && b.done) {
+          // completing a recurring task re-arms it for the next interval instead of finishing
+          await prisma.todo.update({ where: { id }, data: { done: false, dueDate: startOfDayPlus(t.recurEveryDays) } }).catch(() => null);
+        } else {
+          await prisma.todo.update({ where: { id }, data: { done: !!b.done } }).catch(() => null);
+        }
+      } else if (action === "repeat") {
+        const recur = parseRecur(b.recurEveryDays);
+        const data: { recurEveryDays: number | null; done?: boolean; dueDate?: Date } = { recurEveryDays: recur };
+        if (recur) {
+          data.done = false;
+          data.dueDate = startOfDayPlus(0); // becomes due today, then cycles
+        }
+        await prisma.todo.update({ where: { id }, data }).catch(() => null);
+      } else if (action === "edit") {
         const title = String(b.text ?? "").trim();
         if (title) await prisma.todo.update({ where: { id }, data: { title: title.slice(0, 200) } }).catch(() => null);
       } else if (action === "due") await prisma.todo.update({ where: { id }, data: { dueDate: b.at ? new Date(String(b.at)) : null } }).catch(() => null);

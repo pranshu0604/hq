@@ -423,15 +423,16 @@ enum TodoKind {
 }
 
 model Todo {
-  id        String       @id @default(cuid())
-  title     String
-  done      Boolean      @default(false)
-  priority  TodoPriority @default(MEDIUM)
-  kind      TodoKind     @default(QUICK)
-  status    String       @default("") // running status for ongoing todos
-  dueDate   DateTime?
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  id             String       @id @default(cuid())
+  title          String
+  done           Boolean      @default(false)
+  priority       TodoPriority @default(MEDIUM)
+  kind           TodoKind     @default(QUICK)
+  status         String       @default("") // running status for ongoing todos
+  dueDate        DateTime?
+  recurEveryDays Int? // null = one-off; N = repeats every N days (re-arms on completion)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 }
 
 // ---------- Focus (the NOW engine) ----------
