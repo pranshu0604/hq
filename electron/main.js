@@ -390,8 +390,11 @@ function createWindow() {
   });
 
   const isInternal = (url) => url.startsWith(BASE);
+  const isHandbookRaw = (url) => /\/handbooks\/[^/]+\/raw(\?|#|$)/.test(url);
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (!isInternal(url)) shell.openExternal(url);
+    // handbooks: open the rendered HTML in the default browser (isolated), even
+    // though it's an internal URL — otherwise an internal _blank link goes nowhere.
+    if (!isInternal(url) || isHandbookRaw(url)) shell.openExternal(url);
     return { action: "deny" };
   });
   mainWindow.webContents.on("will-navigate", (e, url) => {

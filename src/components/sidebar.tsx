@@ -33,6 +33,7 @@ const GROUPS: NavGroup[] = [
       { n: "07", href: "/quotes", label: "Quotes" },
       { n: "15", href: "/decisions", label: "Decisions" },
       { n: "17", href: "/manual", label: "Manual" },
+      { n: "19", href: "/handbooks", label: "Handbooks" },
     ],
   },
   {
@@ -44,7 +45,7 @@ const GROUPS: NavGroup[] = [
       { n: "10", href: "/wellbeing", label: "Wellbeing" },
     ],
   },
-  { items: [{ n: "12", href: "/insights", label: "Insights" }, { n: "16", href: "/review", label: "Review" }] },
+  { items: [{ n: "12", href: "/insights", label: "Insights" }] },
 ];
 
 export default function Sidebar({ level = 1, levelName = "", xpPct = 0 }: { level?: number; levelName?: string; xpPct?: number }) {

@@ -11,7 +11,7 @@ export default async function DecisionsPage() {
         <div className="eyebrow">HQ · Decisions</div>
         <h1 className="display text-4xl mt-2">Decided</h1>
         <p className="mt-3 text-[15px] text-ink-dim max-w-xl">
-          What you chose, and why. When you catch yourself re-opening a settled question with no new information — this is the receipt.
+          One card per situation — what you chose and why. When it comes back around, Revise it: the new call is saved on top, the old ones kept underneath, so you always see how your thinking on that exact situation has moved.
         </p>
       </header>
       <DecisionsBoard initial={decisions} />

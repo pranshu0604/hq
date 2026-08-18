@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentNow } from "@/lib/focus";
 import { getToday } from "@/lib/day";
 import { getNow } from "@/lib/format";
+import { projectHealth } from "@/lib/project-health";
 
 export const dynamic = "force-dynamic";
 
@@ -16,12 +17,13 @@ export default async function StatePage() {
   const end = new Date(nowMs);
   end.setHours(23, 59, 59, 999);
 
-  const [now, day, openTodos, applications, commitments, openLoops, parked, worries] = await Promise.all([
+  const [now, day, openTodos, applications, commitments, projects, openLoops, parked, worries] = await Promise.all([
     getCurrentNow(nowMs),
     getToday(nowMs),
     prisma.todo.findMany({ where: { done: false } }),
     prisma.application.findMany({ where: { status: "APPLIED" }, include: { platforms: true } }),
     prisma.capture.findMany({ where: { status: { in: ["OPEN", "PARKED"] }, kind: "COMMITMENT" }, orderBy: { createdAt: "asc" }, take: 5 }),
+    prisma.project.findMany(),
     prisma.capture.count({ where: { status: "OPEN" } }),
     prisma.capture.count({ where: { status: "PARKED" } }),
     prisma.capture.count({ where: { status: { in: ["OPEN", "PARKED"] }, kind: "WORRY" } }),
@@ -34,11 +36,18 @@ export default async function StatePage() {
     .slice(0, 3);
   const waiting = applications.filter((a) => !a.platforms.some((p) => p.responseReceived));
 
+  const activeProjects = projects.filter((p) => !["SHIPPED", "ABANDONED"].includes(p.status));
+  const rotting = activeProjects.filter((p) => projectHealth(p, nowMs).level === "RED");
+  const highTodos = openTodos.filter((t) => t.priority === "HIGH").length;
+
   const system = day?.maintenance ? "Maintenance" : now ? (now.kind === "CULTURE" ? "Culture" : "Focused") : day?.energy ? cap(day.energy) : "Open";
 
   return (
     <div className="mx-auto max-w-2xl px-4 sm:px-8 py-16 reveal">
-      <div className="eyebrow mb-10">HQ · Life state</div>
+      <header className="mb-10">
+        <div className="eyebrow">HQ · Life state</div>
+        <p className="mt-3 text-[13px] text-ink-dim max-w-md">Everything on you right now, and what&apos;s set aside. Glance daily; compress weekly.</p>
+      </header>
 
       <Block label="Now">
         {now ? (
@@ -50,7 +59,7 @@ export default async function StatePage() {
         )}
       </Block>
 
-      <Block label="Today">
+      <Block label="Today" hint={highTodos ? `${highTodos} high-priority — that's the week` : undefined}>
         {important.length === 0 ? (
           <Empty>nothing pressing</Empty>
         ) : (
@@ -84,6 +93,16 @@ export default async function StatePage() {
               {c.who ? <span className="text-ink-faint"> — {c.who}</span> : null}
             </div>
           ))
+        )}
+      </Block>
+
+      <Block label={`Projects · ${activeProjects.length}`} hint={rotting.length ? `${rotting.length} at risk — resume, replan, or kill` : "all showing signs of life"}>
+        {activeProjects.length === 0 ? (
+          <Empty>none active</Empty>
+        ) : (
+          <Link href="/projects" className="text-[15px] text-ink-dim hover:text-accent transition-colors block">
+            {rotting.length ? `${rotting.length} rotting · ${activeProjects.length - rotting.length} healthy →` : `${activeProjects.length} active →`}
+          </Link>
         )}
       </Block>
 

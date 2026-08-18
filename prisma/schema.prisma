@@ -542,13 +542,45 @@ model Reminder {
 // ---------- Decision memory (anti-rumination) ----------
 // Record what you decided and WHY, so you stop re-litigating solved questions.
 
+// A Decision is the SITUATION (a recurring question you keep facing). `choice`
+// and `reason` hold the CURRENT stance, denormalized from the newest revision;
+// `revisions` is the full history — so when the situation recurs you can see
+// every past call and the reasoning behind it, even the ones you've forgotten.
 model Decision {
   id         String    @id @default(cuid())
-  title      String // the question you settled
-  choice     String // what you chose
-  reason     String    @default("")
+  title      String // the situation / question (stays constant)
+  choice     String // current decision (latest revision)
+  reason     String    @default("") // current reasoning (latest revision)
   createdAt  DateTime  @default(now())
-  reopenedAt DateTime?
+  reopenedAt DateTime? // deprecated (kept for back-compat; replaced by revisions)
+  revisions  DecisionRevision[]
+}
+
+// One point-in-time stance on a Decision: what you chose, why, and what changed
+// your mind since last time. Immutable log entries — you add, you don't rewrite.
+model DecisionRevision {
+  id         String   @id @default(cuid())
+  decisionId String
+  decision   Decision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  choice     String // what you chose this time
+  reason     String   @default("") // the why, this time
+  note       String   @default("") // what shifted since the last stance (optional)
+  createdAt  DateTime @default(now())
+
+  @@index([decisionId])
+}
+
+// ---------- Handbooks ----------
+// Self-contained HTML documents (deep research you distilled into a handbook).
+// Uploaded into HQ so they're always at hand; served as real text/html so they
+// open and render in any browser. The raw HTML lives in `content`.
+model Handbook {
+  id        String   @id @default(cuid())
+  title     String
+  content   String // the raw HTML document
+  sizeBytes Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ---------- Personal operating manual ----------

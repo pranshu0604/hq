@@ -22,6 +22,8 @@ export default function NotesApp({ notes, mentions = {} }: { notes: Note[]; ment
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(notes[0]?.id ?? null);
   const [pending, startTransition] = useTransition();
+  // mobile master-detail: false = show the list, true = show the open note (desktop shows both)
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return notes;
@@ -37,12 +39,18 @@ export default function NotesApp({ notes, mentions = {} }: { notes: Note[]; ment
     startTransition(async () => {
       const id = await createNote();
       setSelectedId(id);
+      setMobileOpen(true);
     });
   }
 
+  function openNote(id: string) {
+    setSelectedId(id);
+    setMobileOpen(true);
+  }
+
   return (
-    <div className="grid grid-cols-[280px_1fr] gap-8 border-t border-line pt-8">
-      <div>
+    <div className="lg:grid lg:grid-cols-[280px_1fr] lg:gap-8 border-t border-line pt-6 lg:pt-8">
+      <div className={`${mobileOpen ? "hidden lg:block" : "block"}`}>
         <div className="flex gap-2 mb-4">
           <input className="field-input" placeholder="Search notes…" value={query} onChange={(e) => setQuery(e.target.value)} />
           <button onClick={handleNew} className="btn shrink-0 px-3" aria-label="New note">
@@ -55,7 +63,7 @@ export default function NotesApp({ notes, mentions = {} }: { notes: Note[]; ment
             return (
               <button
                 key={n.id}
-                onClick={() => setSelectedId(n.id)}
+                onClick={() => openNote(n.id)}
                 className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-200 ${
                   n.id === selectedId ? "bg-selected text-ink" : "text-ink-dim hover:bg-card hover:text-ink"
                 }`}
@@ -77,7 +85,11 @@ export default function NotesApp({ notes, mentions = {} }: { notes: Note[]; ment
         </div>
       </div>
 
-      <div>
+      <div className={`${mobileOpen ? "block" : "hidden lg:block"} mt-2 lg:mt-0`}>
+        {/* mobile-only: back to the note list */}
+        <button onClick={() => setMobileOpen(false)} className="btn btn-ghost text-xs mb-4 lg:hidden" aria-label="Back to notes">
+          ← Notes
+        </button>
         {selected ? (
           <NoteEditor
             key={selected.id}
@@ -89,6 +101,7 @@ export default function NotesApp({ notes, mentions = {} }: { notes: Note[]; ment
             onDelete={() => {
               startTransition(() => deleteNote(selected.id));
               setSelectedId(null);
+              setMobileOpen(false);
             }}
           />
         ) : (
