@@ -618,3 +618,57 @@ model SocialCheck {
   verdict         String   @default("") // PARK | ACT | LETGO
   createdAt       DateTime @default(now())
 }
+
+// ---------- Career profile + job-application autofill ----------
+// The source material the browser extension fills applications from. A singleton
+// (id = "me"), edited on /career and pre-seeded from the résumé. Everything is a
+// plain string so new fields are trivially additive and never block a fill.
+
+model CareerProfile {
+  id             String   @id @default("me")
+  fullName       String   @default("")
+  headline       String   @default("") // "Backend | AI Engineer"
+  email          String   @default("")
+  phone          String   @default("")
+  location       String   @default("")
+  linkedin       String   @default("")
+  github         String   @default("")
+  portfolio      String   @default("")
+  twitter        String   @default("")
+  currentTitle   String   @default("")
+  currentCompany String   @default("")
+  yearsExp       String   @default("")
+  workAuth       String   @default("") // citizenship / sponsorship / visa status
+  noticePeriod   String   @default("")
+  expectedSalary String   @default("")
+  currentSalary  String   @default("")
+  education      String   @default("") // free text
+  skills         String   @default("") // comma / newline list
+  experience     String   @default("") // free text: roles, dates, bullets
+  projects       String   @default("") // free text
+  pitch          String   @default("") // used verbatim-ish for "why you" / cover-letter fields
+  extras         String   @default("") // pre-answered misc Q&A, one per line
+  updatedAt      DateTime @updatedAt
+}
+
+// One autofill request. The extension POSTs a scrape of the page's form fields;
+// HQ parks it PENDING; the running Claude session reads it, writes `answers`,
+// flips it ANSWERED; the extension polls, fills the DOM, and (on submit) links
+// it to a created Application via applicationId.
+
+model FillJob {
+  id            String   @id @default(cuid())
+  url           String   @default("")
+  pageTitle     String   @default("")
+  company       String   @default("")
+  role          String   @default("")
+  status        String   @default("PENDING") // PENDING -> ANSWERED -> APPLIED / CANCELLED
+  fields        String   @default("[]") // JSON: [{ key, label, type, options?, name?, current? }]
+  answers       String   @default("{}") // JSON: { key: value }
+  note          String   @default("") // Claude's short summary / any message back to you
+  applicationId String? // set once saved into Applications
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+}

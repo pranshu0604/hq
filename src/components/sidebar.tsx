@@ -20,6 +20,7 @@ const GROUPS: NavGroup[] = [
     heading: "Career",
     items: [
       { n: "01", href: "/applications", label: "Applications" },
+      { n: "20", href: "/career", label: "Career profile" },
       { n: "02", href: "/work", label: "Work" },
       { n: "03", href: "/projects", label: "Projects" },
       { n: "04", href: "/social", label: "Social" },

@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "HQ Autofill",
+  "version": "1.1.0",
+  "description": "Fill job applications from your HQ career profile — Claude reads the page and fills it, then logs it to Applied.",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": [
+    "https://hq-three-mauve.vercel.app/*",
+    "http://localhost:3411/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "HQ Autofill"
+  },
+  "options_page": "options.html"
+}

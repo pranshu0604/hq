@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body { margin: 0; background: #0f1115; color: #e7e3da; font: 14px/1.5 -apple-system, system-ui, sans-serif; }
+      .wrap { max-width: 460px; margin: 40px auto; padding: 0 20px; }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      p { color: #9a958c; font-size: 13px; margin: 0 0 22px; }
+      label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #6b6860; margin: 16px 0 6px; }
+      input { width: 100%; box-sizing: border-box; background: #171a21; border: 1px solid #262b36; border-radius: 8px; color: #e7e3da; padding: 9px 11px; font-size: 14px; }
+      button { margin-top: 20px; background: #dc9a58; color: #0f1115; border: 0; border-radius: 8px; padding: 10px 16px; font-weight: 600; font-size: 14px; cursor: pointer; }
+      .ok { color: #1fb872; font-size: 13px; margin-left: 10px; }
+      code { background: #171a21; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>HQ Autofill — settings</h1>
+      <p>Point this at your HQ and paste the API token (the same <code>HQ_API_TOKEN</code> the widget uses). Stored locally in this browser only.</p>
+      <label>HQ URL</label>
+      <input id="hqUrl" placeholder="https://hq-three-mauve.vercel.app" />
+      <label>API token</label>
+      <input id="token" type="password" placeholder="x-hq-token value" />
+      <div>
+        <button id="save">Save</button>
+        <span class="ok" id="ok"></span>
+      </div>
+    </div>
+    <script src="options.js"></script>
+  </body>
+</html>

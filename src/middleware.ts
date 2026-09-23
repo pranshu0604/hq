@@ -11,6 +11,10 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   if (PUBLIC.some((p) => pathname.startsWith(p))) return NextResponse.next();
 
+  // CORS preflight carries no token/cookie — let it through so the extension's
+  // cross-origin POSTs to /api/ext/* can complete. The actual request is gated.
+  if (req.method === "OPTIONS") return NextResponse.next();
+
   // native clients (widgets) authenticate with a bearer token instead of a cookie
   if (pathname.startsWith("/api/")) {
     const tok = req.headers.get("x-hq-token");

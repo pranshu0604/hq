@@ -7,8 +7,7 @@
 // mirrors sessions to (and adopts them from) the shared /api/now contract so the
 // web dashboard and the desktop always agree.
 
-const { app, BrowserWindow, Tray, Menu, nativeImage, shell, ipcMain, screen, globalShortcut, Notification } = require("electron");
-const http = require("node:http");
+const { app, BrowserWindow, Tray, Menu, nativeImage, shell, ipcMain, screen, globalShortcut, Notification, session: electronSession } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
 const { exec } = require("node:child_process");
@@ -28,7 +27,11 @@ function runShortcut(name) {
 const DISTRACTING = new Set(["Messages", "Slack", "Discord", "WhatsApp", "Telegram", "Music", "TV", "Photos", "App Store", "Mail"]);
 let lastShieldApp = "";
 
-const BASE = process.env.HQ_URL || "http://localhost:3411";
+// HQ now lives on Vercel — the desktop shell just wraps it, so it no longer
+// depends on a local PM2 server being up. Override with HQ_URL for local dev
+// (e.g. HQ_URL=http://localhost:3411 npm run desktop).
+const BASE = process.env.HQ_URL || "https://hq-three-mauve.vercel.app";
+const SESSION_COOKIE = "hq_session"; // set by the web login; reused for main-process API auth
 const ASSETS = path.join(__dirname, "assets");
 
 // quick-jump destinations shown in the menu bar
@@ -105,18 +108,28 @@ function saveState() {
 // ---------------------------------------------------------------------------
 // server readiness: PM2 may still be booting when we launch
 // ---------------------------------------------------------------------------
-function ping(url, timeout = 1500) {
-  return new Promise((resolve) => {
-    const req = http.get(url, { timeout }, (res) => {
-      res.resume();
-      resolve(res.statusCode > 0);
-    });
-    req.on("error", () => resolve(false));
-    req.on("timeout", () => {
-      req.destroy();
-      resolve(false);
-    });
-  });
+// Remote HQ auth: reuse the logged-in window's session cookie so the
+// main-process API calls (NOW/schedule/overload sync) are authenticated too —
+// no secret is ever stored on disk. You sign into the window once; this rides
+// along. Returns just `extra` (unauthenticated) until that cookie exists.
+async function authHeaders(extra = {}) {
+  try {
+    const jar = await electronSession.defaultSession.cookies.get({ name: SESSION_COOKIE });
+    if (jar.length) return { cookie: `${SESSION_COOKIE}=${jar[0].value}`, ...extra };
+  } catch {
+    /* no session yet */
+  }
+  return { ...extra };
+}
+
+async function ping(url = BASE, timeout = 4000) {
+  try {
+    // redirect:manual so the /login 307 (when signed out) still counts as "reachable"
+    await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(timeout), headers: await authHeaders() });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function waitForServer(tries = 20) {
@@ -137,8 +150,8 @@ const OFFLINE_HTML = `data:text/html,${encodeURIComponent(`
     button{background:#dc9a58;color:#0f1115;border:0;border-radius:8px;
       padding:9px 18px;font-weight:600;cursor:pointer}
   </style></head><body><div class="box">
-    <h1>HQ isn't responding</h1>
-    <p>The local server at ${BASE} isn't up yet. It runs under PM2 — give it a moment.</p>
+    <h1>HQ isn't reachable</h1>
+    <p>Can't reach ${BASE} — check your internet connection.</p>
     <button onclick="location.reload()">Retry</button>
   </div></body></html>`)}`;
 
@@ -158,19 +171,15 @@ async function loadApp(route = "/") {
 // never depends on the server (it's a local clock); this just keeps the web
 // dashboard and the desktop in agreement.
 // ---------------------------------------------------------------------------
-// best-effort JSON POST to a local HQ endpoint — fire-and-forget
-function httpPost(pathname, obj) {
+// best-effort authenticated JSON POST to HQ — fire-and-forget
+async function httpPost(pathname, obj) {
   try {
-    const data = JSON.stringify(obj);
-    const u = new URL(`${BASE}${pathname}`);
-    const req = http.request(
-      { hostname: u.hostname, port: u.port, path: u.pathname, method: "POST", timeout: 1500, headers: { "content-type": "application/json", "content-length": Buffer.byteLength(data) } },
-      (res) => res.resume(),
-    );
-    req.on("error", () => {});
-    req.on("timeout", () => req.destroy());
-    req.write(data);
-    req.end();
+    await fetch(`${BASE}${pathname}`, {
+      method: "POST",
+      headers: await authHeaders({ "content-type": "application/json" }),
+      body: JSON.stringify(obj),
+      signal: AbortSignal.timeout(4000),
+    });
   } catch {
     /* offline — desktop keeps working locally */
   }
@@ -178,30 +187,13 @@ function httpPost(pathname, obj) {
 
 const apiPost = (action, extra = {}) => httpPost("/api/now", { action, ...extra });
 
-function httpGetJson(pathname) {
-  return new Promise((resolve) => {
-    try {
-      const u = new URL(`${BASE}${pathname}`);
-      const req = http.get({ hostname: u.hostname, port: u.port, path: u.pathname, timeout: 1500 }, (res) => {
-        let b = "";
-        res.on("data", (c) => (b += c));
-        res.on("end", () => {
-          try {
-            resolve(JSON.parse(b));
-          } catch {
-            resolve(null);
-          }
-        });
-      });
-      req.on("error", () => resolve(null));
-      req.on("timeout", () => {
-        req.destroy();
-        resolve(null);
-      });
-    } catch {
-      resolve(null);
-    }
-  });
+async function httpGetJson(pathname) {
+  try {
+    const r = await fetch(`${BASE}${pathname}`, { headers: await authHeaders(), signal: AbortSignal.timeout(4000) });
+    return await r.json();
+  } catch {
+    return null;
+  }
 }
 
 const apiGetNow = () => httpGetJson("/api/now").then((d) => (d && d.now) || null);
@@ -259,36 +251,18 @@ async function pollReminders() {
 }
 
 // like httpPost but awaits + parses the JSON response
-function httpPostJson(pathname, obj) {
-  return new Promise((resolve) => {
-    try {
-      const data = JSON.stringify(obj);
-      const u = new URL(`${BASE}${pathname}`);
-      const req = http.request(
-        { hostname: u.hostname, port: u.port, path: u.pathname, method: "POST", timeout: 1500, headers: { "content-type": "application/json", "content-length": Buffer.byteLength(data) } },
-        (res) => {
-          let b = "";
-          res.on("data", (c) => (b += c));
-          res.on("end", () => {
-            try {
-              resolve(JSON.parse(b));
-            } catch {
-              resolve(null);
-            }
-          });
-        },
-      );
-      req.on("error", () => resolve(null));
-      req.on("timeout", () => {
-        req.destroy();
-        resolve(null);
-      });
-      req.write(data);
-      req.end();
-    } catch {
-      resolve(null);
-    }
-  });
+async function httpPostJson(pathname, obj) {
+  try {
+    const r = await fetch(`${BASE}${pathname}`, {
+      method: "POST",
+      headers: await authHeaders({ "content-type": "application/json" }),
+      body: JSON.stringify(obj),
+      signal: AbortSignal.timeout(4000),
+    });
+    return await r.json();
+  } catch {
+    return null;
+  }
 }
 
 // Context Shield — during a FOCUS session, notice when you slip into a clear
